@@ -1,3 +1,4 @@
+
 import bpy
 from mathutils import  Quaternion, Euler
 
@@ -54,7 +55,20 @@ def get_keyframe_at_frame(fcurve, frame):
     for keyframe in fcurve.keyframe_points:
         if round(keyframe.co.x) == frame:
             return keyframe
-    return None        
+    return None       
+
+
+def close_limit_rotation(armature):
+    pbone_data, pbone_data_ref = get_pbone_data(armature)
+    for i in range(len(pbone_data)):
+        posebones = pbone_data[i]
+        posebones_ref = pbone_data_ref[i]
+        arm, forearm, hand  = posebones
+        arm_ref, forearm_ref, hand_ref = posebones_ref
+        for pbone in [arm,arm_ref,forearm,forearm_ref,hand,hand_ref,]:
+            for cns in pbone.constraints:
+                if cns.type == "LIMIT_ROTATION":
+                    cns.enabled = False
 
 #如果frame帧posebones中任一骨骼有关键帧，就给posebones中的每根骨骼添加关键帧
 def supply_keyframe(armature,pbones,frame,align=False):    
@@ -84,7 +98,6 @@ def supply_keyframe(armature,pbones,frame,align=False):
                 if align:
                     align_pbone(pbone,frame)
                     # fcurve.update()  
-
 
 #通过action/fcurve获得骨骼在指定时间的旋转通道值
 #plus:加上捩骨骼的y旋转                    
@@ -226,3 +239,32 @@ def find_sandwiching_frames(frames, current_frame):
     if not frame_start or not frame_end:
         return None
     return [frame_start, frame_end]  
+
+
+def get_pbone_data(armature):
+    armature_ref = armature.mmd_advance_data.reference
+    pbone_data = (
+        (get_pbone_by_mmd_name(armature,"左腕"),get_pbone_by_mmd_name(armature,"左ひじ"),get_pbone_by_mmd_name(armature,"左手首")),
+        (get_pbone_by_mmd_name(armature,"右腕"),get_pbone_by_mmd_name(armature,"右ひじ"),get_pbone_by_mmd_name(armature,"右手首")),
+    )
+    pbone_data_ref = None
+    if armature_ref:
+        pbone_data_ref = (
+            (get_pbone_by_mmd_name(armature_ref,"左腕"),get_pbone_by_mmd_name(armature_ref,"左ひじ"),get_pbone_by_mmd_name(armature_ref,"左手首")),
+            (get_pbone_by_mmd_name(armature_ref,"右腕"),get_pbone_by_mmd_name(armature_ref,"右ひじ"),get_pbone_by_mmd_name(armature_ref,"右手首")),
+        )
+    return pbone_data,pbone_data_ref
+
+def get_twist_pbone_data(armature):
+    armature_ref = armature.mmd_advance_data.reference
+    twist_pbone_data = (
+        (get_pbone_by_mmd_name(armature,"左腕捩"),get_pbone_by_mmd_name(armature,"左手捩"),),
+        (get_pbone_by_mmd_name(armature,"右腕捩"),get_pbone_by_mmd_name(armature,"右手捩"),),
+    )
+    twist_pbone_data_ref = None
+    if armature_ref:
+        twist_pbone_data_ref = (
+            (get_pbone_by_mmd_name(armature_ref,"左腕捩"),get_pbone_by_mmd_name(armature_ref,"左手捩"),),
+            (get_pbone_by_mmd_name(armature_ref,"右腕捩"),get_pbone_by_mmd_name(armature_ref,"右手捩"),),
+        )
+    return twist_pbone_data,twist_pbone_data_ref

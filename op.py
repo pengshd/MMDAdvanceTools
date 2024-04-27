@@ -1,6 +1,4 @@
-from typing import Set
 import bpy
-from bpy.types import Context, Event
 from .service import *
 
 class CustormOperator(bpy.types.Operator):
