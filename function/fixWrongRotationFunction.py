@@ -1,4 +1,4 @@
-from . import logger
+from .. import logger
 from .commonFunction import *
 from math import pi
 
@@ -12,6 +12,7 @@ def fix_wrong_rotation(armature,posebones,frames):
     for posebone in posebones:
         frame_prev = None
         fixed_frame = []
+        fixed_frame_str = ""
         for frame in frames:
             fcurves = []
             value = []

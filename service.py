@@ -8,7 +8,6 @@ def convert_arm_rotation(context):
     armature = context.active_object
     current_frame = context.scene.frame_current
     posebone_data,posebone_data_ref = get_pbone_data(armature)
-    twist_posebone_data,twist_posebone_data_ref = get_twist_pbone_data(armature)
     for i in range(len(posebone_data)):
         posebones = posebone_data[i]
         posebones_ref = posebone_data_ref[i]
@@ -31,10 +30,9 @@ def convert_arm_rotation(context):
             context.scene.frame_set(frame)
             adjust_bone_rotation_for_ergonomics(context, armature, [arm, forearm, hand], [arm_ref, forearm_ref, hand_ref])
             progress+=1
-
     context.scene.frame_current = current_frame
 
-def fix_arm_quaternion(context):
+def fix_quaternion(context):
     armature = context.active_object
     pbones_data = get_pbone_data(armature)[0]
     for pbones in pbones_data:
@@ -47,9 +45,9 @@ def completely_fix_interpolation_exceed_rotation_difference(context,armature,sel
     for i in range(10):
         logger.info(f"fix {sel_bones_str} {i+1} round>>>>")
         if i == 0:
-            fix_arm_quaternion(context)
+            fix_quaternion(context)
         fix_frames = fix_interpolation_exceed_rotation_difference(context,armature,sel_pbones,only_now)
-        fix_arm_quaternion(context)
+        fix_quaternion(context)
         if not fix_frames:
             logger.info(f"fix {sel_bones_str} complete!")
             return

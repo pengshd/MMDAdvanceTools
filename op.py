@@ -102,6 +102,7 @@ class MMD_OT_simplify_twist_bone(CustormOperator):
     
 
     
+#该方法还需要增加一个在第0帧添加0旋转关键帧并删除其他所有关键帧的功能
 class MMD_OT_fix_arm_rotation(CustormOperator):
     
     bl_label = "手臂旋转转换成人体工学"
@@ -114,16 +115,15 @@ class MMD_OT_fix_arm_rotation(CustormOperator):
             return False
         return True
     
-    def execute(self, context):  
-        if not context.active_object.mmd_advance_data.reference:
-            self.report({'INFO'}, "请创建参考骨骼后再使用")
-            return {"CANCELLED"}    
+    def execute(self, context):    
         convert_arm_rotation(context)
+        bpy.ops.play.working_end()
         return {"FINISHED"}    
     
     def invoke(self, context, event):
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
+    
     
 class MMD_OT_fix_interpolation_exceed(CustormOperator):
     
@@ -140,11 +140,9 @@ class MMD_OT_fix_interpolation_exceed(CustormOperator):
             return False
         return True
     
-    def execute(self, context):  
-        if not context.active_object.mmd_advance_data.reference:
-            self.report({'INFO'}, "请创建参考骨骼后再使用")
-            return {"CANCELLED"}    
+    def execute(self, context):   
         completely_fix_interpolation_exceed_rotation_difference(context,context.active_object,context.selected_pose_bones,self.only_now)
+        bpy.ops.play.working_end()
         return {"FINISHED"}    
     
     def invoke(self, context, event):
@@ -171,11 +169,10 @@ class MMD_OT_fix_arm_quaternion(CustormOperator):
         return True
     
     def execute(self, context):  
-        fix_arm_quaternion(context)
+        fix_quaternion(context)
+        bpy.ops.play.working_end()
 
         return {"FINISHED"}    
-
-       
 
 class MMD_OT_clean_action(CustormOperator):
     
@@ -215,33 +212,6 @@ class MMD_OT_clean_action(CustormOperator):
 
 
 
-class MMD_OT_clear_transformation(CustormOperator):
-    
-    bl_label = "清除变换"
-    bl_description = "清除变换"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    @classmethod
-    def poll(cls, context):
-        if not context.selected_objects:
-            return False
-        return True
-    
-    def execute(self, context):
-        # 获取当前选中的物体
-        for obj in context.selected_objects:
-            if obj.type == 'ARMATURE':
-                for pbone in obj.pose.bones:
-                    pbone.location = (0, 0, 0)
-                    pbone.rotation_quaternion = (1, 0, 0, 0)
-                    pbone.rotation_euler = (0,0,0)
-                    pbone.scale = (1, 1, 1)
-            else:
-                obj.location = (0, 0, 0)
-                obj.rotation_quaternion = (1, 0, 0, 0)
-                obj.rotation_euler = (0,0,0)
-                obj.scale = (1, 1, 1)    
-        return {'FINISHED'}   
 
 class MMD_OT_create_ref_armature(CustormOperator):
     
@@ -397,7 +367,6 @@ classes = [
     MMD_OT_fix_arm_rotation,
     MMD_OT_fix_arm_quaternion,
     MMD_OT_clean_action,
-    MMD_OT_clear_transformation,
     MMD_OT_create_ref_armature,
     MMD_OT_delete_ref_armature,
     MMD_OT_fix_interpolation_exceed,

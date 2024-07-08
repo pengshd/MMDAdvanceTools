@@ -1,6 +1,6 @@
 from math import pi
 from .commonFunction import *
-from . import logger
+from .. import logger
 from .changeRotationFunction import adjust_bone_rotation_for_ergonomics
 
 # 对于和参考动作差异超过阈值的帧写入关键帧，为重新计算做准备
@@ -102,7 +102,8 @@ def fix_interpolation_exceed_rotation_difference(context,armature,sel_pbones,onl
                 frames = [current_frame-1,current_frame+1]
             else:
                 frames = find_sandwiching_frames(frames,current_frame)
-        pending_frames = supply_frame_with_exceed_rotation_difference(armature,pbones,pbones_for_check,frames)
+        if frames:       
+            pending_frames = supply_frame_with_exceed_rotation_difference(armature,pbones,pbones_for_check,frames)
         ##关掉前臂的限制旋转
         close_limit_rotation(armature)
         progress = 0

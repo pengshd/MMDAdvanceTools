@@ -23,7 +23,8 @@ class MMD_PT_panel(bpy.types.Panel):
                 row.operator(operator=MMD_OT_delete_ref_armature.bl_idname,text= "删除临时骨骼")
                 row = layout.row()
                 row.operator(operator="mmd_tools.import_vmd",text="导入动作")
-                if armature.mmd_advance_data.reference:
+                return_msg = self.check(context)
+                if not return_msg:
                     layout.separator(factor=1)
                     row = layout.row()
                     row.prop(armature.mmd_advance_data,"covert_frame_start",text = "开始时间")
@@ -63,13 +64,15 @@ class MMD_PT_panel(bpy.types.Panel):
                     row.operator(operator=MMD_OT_simplify_twist_bone.bl_idname)
                     row = layout.row()
                     row.operator(operator=MMD_OT_clean_action.bl_idname,text= "清理动画通道")
-                    row.operator(operator=MMD_OT_clear_transformation.bl_idname,text= "清除变换")
 
                     if context.active_object:
                         self.draw_ik_toggle(context)
 
                     layout.separator(factor=5)
                     self.draw_monitor_list(context)    
+                else:
+                    layout.label(text=return_msg,icon="ERROR")
+                    
             else:
                 row.label(text = "上臂/前臂/手骨骼未设置旋转模式为四元数旋转。")
                 row = layout.row()
@@ -121,6 +124,17 @@ class MMD_PT_panel(bpy.types.Panel):
             remove_index+=1
             row.operator(operator=MMD_OT_add_delete_monitor_bone.bl_idname,text="",icon="ADD").add = True
 
+    def check(self, context):
+        ref_armature = context.active_object.mmd_advance_data.reference
+        if not ref_armature:
+            return "请创建参考骨骼后再使用"   
+        if ref_armature.animation_data and ref_armature.animation_data.action:    
+            ref_action = ref_armature.animation_data.action
+            if ref_action.name != context.active_object.animation_data.action.name+"_ref":
+                return "参考骨骼动作不属于当前骨骼的复制动作！"
+        else:
+            return "参考骨骼动作不属于当前骨骼的复制动作！"
+        return None   
 
 classes = [
     MMD_PT_panel,

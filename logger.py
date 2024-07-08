@@ -19,7 +19,7 @@ def show_progress_bar(job_title, progress, length):
         progress = int((progress * 100) / length)
     else:
         progress = 100
-    print(" %d%%" % progress,end=" ",flush=True)
+    print("%d%%" % progress,end=" ",flush=True)
 
 
 def concatenate_elements(arr):  
