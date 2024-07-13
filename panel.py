@@ -54,10 +54,9 @@ class MMD_PT_panel(bpy.types.Panel):
                     row = layout.row()
                     row.label(text="（操作前请先转换参考骨架的捩旋转。）")
                     row = layout.row()
-                    row.prop(armature.mmd_advance_data,"interpolation_angle_gap",text = "插值角度偏离上限")
+                    row.prop(armature.mmd_advance_data,"fix_angle_limit",text = "插值角度偏离上限")
                     row = layout.row()
-                    row.operator(operator=MMD_OT_fix_interpolation_exceed.bl_idname,text="超出界限帧插值重新计算",icon="EVENT_F3").only_now = False
-                    row.operator(operator=MMD_OT_fix_interpolation_exceed.bl_idname,text="超出界限帧插值重新计算（当前帧）").only_now = True
+                    row.operator(operator=MMD_OT_fix_interpolation_exceed.bl_idname,text="超出界限帧插值重新计算",icon="EVENT_F3")
                     layout.separator(factor=1) 
                     row = layout.row()
                     row.operator(operator=MMD_OT_fix_bone_index.bl_idname)

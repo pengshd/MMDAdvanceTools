@@ -2,7 +2,7 @@ from mathutils import Matrix, Vector
 from math import pi
 from .commonFunction import *
 
-def adjust_bone_rotation_for_ergonomics(context, armature, posebones, posebones_ref):
+def convert_rotation_mode_and_align(context, armature, posebones, posebones_ref):
 
     def rotate_local(posebone,axis_index,rad):
         axis = (posebone.matrix.to_3x3().col)[axis_index]

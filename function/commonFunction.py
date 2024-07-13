@@ -1,6 +1,6 @@
-
 import bpy
 from mathutils import  Quaternion, Euler
+from ..properties import Transform
 
 def get_pbone_by_mmd_name(armature,mmd_name):
     for pbone in armature.pose.bones:
@@ -32,8 +32,8 @@ def get_symmetrical_bone_name(bone_name):
     else:
         return ""
 
-
-def get_keyframe_frames(armature,posebones,only_now = False):
+#获取在>=frame_start且<=frame_end范围内的关键帧的帧数
+def get_key_frames(armature,posebones,frame_start,frame_end):
     keyframe_frames = set()  # 使用集合来确保不重复
     action = armature.animation_data.action
     if not action:
@@ -42,11 +42,10 @@ def get_keyframe_frames(armature,posebones,only_now = False):
         for fcurve in action.fcurves:
             if fcurve.data_path.startswith("pose.bones[\"{}\"].".format(posebone.name)):
                 for keyframe_point in fcurve.keyframe_points:
-                    if not only_now:
-                        if keyframe_point.co[0] < armature.mmd_advance_data.covert_frame_start:
-                            continue
-                        if keyframe_point.co[0] > armature.mmd_advance_data.covert_frame_end:
-                            break
+                    if keyframe_point.co[0] < frame_start:
+                        continue
+                    if keyframe_point.co[0] > frame_end:
+                        break
                     keyframe_frames.add(round(keyframe_point.co[0]))
     return sorted(list(keyframe_frames))   
 
@@ -59,7 +58,7 @@ def get_keyframe_at_frame(fcurve, frame):
 
 
 def close_limit_rotation(armature):
-    pbone_data, pbone_data_ref = get_pbone_data(armature)
+    pbone_data, pbone_data_ref = get_pbone_chains(armature)
     for i in range(len(pbone_data)):
         posebones = pbone_data[i]
         posebones_ref = pbone_data_ref[i]
@@ -70,8 +69,8 @@ def close_limit_rotation(armature):
                 if cns.type == "LIMIT_ROTATION":
                     cns.enabled = False
 
-#如果frame帧posebones中任一骨骼有关键帧，就给posebones中的每根骨骼添加关键帧
-def supply_keyframe(armature,pbones,frame,align=False):    
+# 如果frame帧posebones中任一骨骼有关键帧，就给posebones中的每根骨骼添加关键帧
+def supply_keyframe(armature,pbones,frame):    
     def is_fcurve_related_to_posebone(fcurve, posebone_name):
         data_path = fcurve.data_path
         return data_path.startswith("pose.bones[\"{}\"]".format(posebone_name))
@@ -82,12 +81,6 @@ def supply_keyframe(armature,pbones,frame,align=False):
                 return True
         return False
     
-    def align_pbone(pbone,frame):
-        armature_ref = armature.mmd_advance_data.reference
-        pbone_ref = armature_ref.pose.bones[pbone.name]
-        set_rotation_keyframe(pbone,frame,get_rotation_keyframe(pbone_ref,frame,True)[0],True)
-        # set_rotation_keyframe(pbone,frame,get_rotation_keyframe(pbone_ref,frame)[0])
-    
     for pbone in pbones:
         for fcurve in armature.animation_data.action.fcurves:
             if is_fcurve_related_to_posebone(fcurve,pbone.name):
@@ -95,71 +88,82 @@ def supply_keyframe(armature,pbones,frame,align=False):
                     value = fcurve.evaluate(frame)
                     fcurve.keyframe_points.add(1)
                     fcurve.keyframe_points[-1].co=(frame,value)
-                if align:
-                    align_pbone(pbone,frame)
-                    # fcurve.update()  
 
-#通过action/fcurve获得骨骼在指定时间的旋转通道值
-#plus:加上捩骨骼的y旋转                    
-def get_rotation_keyframe(pbone,frame,plus = False):
-    action = pbone.id_data.animation_data.action
+# 用清除twist旋转后的骨骼对齐ref
+def clear_twist_align(armature,pbones,frame):
+    armature_ref = armature.mmd_advance_data.reference    
+    for pbone in pbones:
+        pbone_ref = armature_ref.pose.bones[pbone.name]
+        set_rotation(pbone,frame,get_rotation(pbone_ref,frame,add_twist_rotation_y = True),clear_twist = True)
+
+
+def find_fcurve(fcurves, bonename, type, index):
+    return fcurves.find(data_path=f'pose.bones[\"{bonename}\"].{type}', index=index)
+
+def get_fcurves(action,pbone,type):
     fcurves = []
-    if pbone.rotation_mode == 'QUATERNION':
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=0))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=1))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=2))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=3))
-        rotation = Quaternion((fcurves[0].evaluate(frame), fcurves[1].evaluate(frame), fcurves[2].evaluate(frame), fcurves[3].evaluate(frame),))
-    else:
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_euler', index=0))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_euler', index=1))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_euler', index=2))
-        rotation = Euler((fcurves[0].evaluate(frame), fcurves[1].evaluate(frame), fcurves[2].evaluate(frame),))
-    if plus:
+    channel_count = 4 if type == "rotation_quaternion" else 3
+    for i in range(channel_count):
+        fcurves.append(find_fcurve(action.fcurves, pbone.name, type, index=i))
+    return fcurves    
+
+def get_values_at_frame(action,pbone,type,frame):
+    fcurves = get_fcurves(action,pbone,type)
+    list = []
+    for fcurve in fcurves:
+        list.append(fcurve.evaluate(frame))
+    return list            
+
+def to_blender_rotation(rotation_values):
+    return Quaternion(rotation_values).normalized() if len(rotation_values) == 4 else Euler(rotation_values)
+
+def to_Euler(rotation,order):
+    return rotation.to_euler(order) if isinstance(rotation,Quaternion) else rotation.to_quaternion().to_euler(order)
+
+# 通过action/fcurve获得骨骼在指定时间的旋转通道值
+# plus:加上子捩骨骼的y旋转，例如arm的旋转加上arm_twist
+def get_rotation(pbone,frame,add_twist_rotation_y = False):
+    action = pbone.id_data.animation_data.action
+    rotation_values = get_values_at_frame(action, pbone, "rotation_quaternion" if pbone.rotation_mode == 'QUATERNION' else "rotation_euler", frame)
+    rotation = to_blender_rotation(rotation_values)
+    if add_twist_rotation_y:
         twist_pbone = get_twist_bone(pbone)
         if twist_pbone:
-            twist_rotation = get_rotation_keyframe(twist_pbone,frame)[0]
-            twist_euler_rotation = twist_rotation.to_euler("YXZ") if twist_pbone.rotation_mode == 'QUATERNION' else twist_rotation.to_quaternion().to_euler("YXZ")
-            euler_rotation = rotation.to_euler("YXZ") if pbone.rotation_mode == 'QUATERNION' else rotation.to_quaternion().to_euler("YXZ")
+            twist_rotation = get_rotation(twist_pbone,frame)
+            twist_euler_rotation = to_Euler(twist_rotation,"YXZ")
+            euler_rotation = to_Euler(rotation,"YXZ")
             euler_rotation.y += twist_euler_rotation.y
             rotation = euler_rotation.to_quaternion() if pbone.rotation_mode == 'QUATERNION' else euler_rotation.to_quaternion().to_euler(pbone.rotation_euler.order)
-    return rotation, fcurves
+    return rotation
 
-#plus:清空捩骨骼的旋转
-def set_rotation_keyframe(pbone,frame,rotation,clear_twist = False):
-    fcurves = []
+# plus:清空捩骨骼的旋转
+def set_rotation(pbone,frame,rotation,clear_twist = False):
     action = pbone.id_data.animation_data.action
+    channel_type = "rotation_quaternion" if pbone.rotation_mode == 'QUATERNION' else "rotation_euler"
+    fcurves = get_fcurves(action,pbone,channel_type)
     if pbone.rotation_mode == 'QUATERNION':
         value = [rotation.w, rotation.x, rotation.y, rotation.z,]
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=0))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=1))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=2))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_quaternion', index=3))
     else:
         value = [rotation.x, rotation.y, rotation.z,]
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_euler', index=0))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_euler', index=1))
-        fcurves.append(action.fcurves.find(data_path=f'pose.bones[\"{pbone.name}\"].rotation_euler', index=2))
     update_keyframe(fcurves, frame, value)
     if clear_twist:
         twist_pbone = get_twist_bone(pbone)
         if twist_pbone:
-            final_twist_rotation = Quaternion((1,0,0,0)) if twist_pbone.rotation_mode == 'QUATERNION' else Euler((0,0,0))
-            set_rotation_keyframe(twist_pbone,frame,final_twist_rotation)
+            final_twist_rotation = Quaternion() if twist_pbone.rotation_mode == 'QUATERNION' else Euler()
+            set_rotation(twist_pbone,frame,final_twist_rotation)
 
-def update_keyframe(fcurves, frame, value):
+def update_keyframe(fcurves, frame, values):
     for i in range(len(fcurves)):
         fcurve = fcurves[i]
         point = get_keyframe_at_frame(fcurve,frame)
         if not point:   
             fcurve.keyframe_points.add(1)
             point = fcurve.keyframe_points[-1]
-        value_changed = 0    
-        if point:
-            value_changed = value[i] - point.co[1]    
-        point.co = frame, value[i]
-        point.handle_left = point.handle_left[0], point.handle_left[1] + value_changed
-        point.handle_right = point.handle_right[0], point.handle_right[1] + value_changed
+        value_changed = values[i] - point.co[1]    
+        point.co = frame, values[i]
+        #0是帧数，1是值
+        point.handle_left[1] += value_changed
+        point.handle_right[1] += value_changed
         fcurve.update()
 
 def create_reference_armature(context,armature):
@@ -221,7 +225,7 @@ def clear_bone_fcurves(armature, pbone):
                     fcurves_to_remove.append(fcurve)  
             for fcurve in fcurves_to_remove:  
                 action.fcurves.remove(fcurve)  
-  
+
 
 def get_twist_bone(pbone):
     return pbone.id_data.pose.bones.get(pbone.name.replace("_mmd","_twist_mmd")) 
@@ -241,30 +245,30 @@ def find_sandwiching_frames(frames, current_frame):
     return [frame_start, frame_end]  
 
 
-def get_pbone_data(armature):
+def get_pbone_chains(armature):
     armature_ref = armature.mmd_advance_data.reference
-    pbone_data = (
+    pbone_chains = (
         (get_pbone_by_mmd_name(armature,"左腕"),get_pbone_by_mmd_name(armature,"左ひじ"),get_pbone_by_mmd_name(armature,"左手首")),
         (get_pbone_by_mmd_name(armature,"右腕"),get_pbone_by_mmd_name(armature,"右ひじ"),get_pbone_by_mmd_name(armature,"右手首")),
     )
-    pbone_data_ref = None
+    pbone_chains_ref = None
     if armature_ref:
-        pbone_data_ref = (
+        pbone_chains_ref = (
             (get_pbone_by_mmd_name(armature_ref,"左腕"),get_pbone_by_mmd_name(armature_ref,"左ひじ"),get_pbone_by_mmd_name(armature_ref,"左手首")),
             (get_pbone_by_mmd_name(armature_ref,"右腕"),get_pbone_by_mmd_name(armature_ref,"右ひじ"),get_pbone_by_mmd_name(armature_ref,"右手首")),
         )
-    return pbone_data,pbone_data_ref
+    return pbone_chains,pbone_chains_ref
 
 def get_twist_pbone_data(armature):
     armature_ref = armature.mmd_advance_data.reference
-    twist_pbone_data = (
+    twist_pbone_chains = (
         (get_pbone_by_mmd_name(armature,"左腕捩"),get_pbone_by_mmd_name(armature,"左手捩"),),
         (get_pbone_by_mmd_name(armature,"右腕捩"),get_pbone_by_mmd_name(armature,"右手捩"),),
     )
-    twist_pbone_data_ref = None
+    twist_pbone_chains_ref = None
     if armature_ref:
-        twist_pbone_data_ref = (
+        twist_pbone_chains_ref = (
             (get_pbone_by_mmd_name(armature_ref,"左腕捩"),get_pbone_by_mmd_name(armature_ref,"左手捩"),),
             (get_pbone_by_mmd_name(armature_ref,"右腕捩"),get_pbone_by_mmd_name(armature_ref,"右手捩"),),
         )
-    return twist_pbone_data,twist_pbone_data_ref
+    return twist_pbone_chains,twist_pbone_chains_ref

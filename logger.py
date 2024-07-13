@@ -1,25 +1,43 @@
 from datetime import datetime
-import sys
 
+
+swtitch = True
 def info(str,end = "\n",flush = False):
-    formatted_datetime = "["+datetime.now().strftime('%H:%M:%S.%f')[:-3]+" INFO]"
-    print(formatted_datetime+str,end=end,flush=flush)
+    if swtitch:
+        formatted_datetime = "["+datetime.now().strftime('%H:%M:%S.%f')[:-3]+" INFO]"
+        print_str = formatted_datetime+str
+        if str.startswith("\r"):
+            print_str = str[0] + formatted_datetime + str[1:]
+        print(print_str,end=end,flush=flush)
 
 def debug(str,end = "\n",flush = False):
     # formatted_datetime = "["+datetime.now().strftime('%H:%M:%S.%f')[:-3]+" DEBUG]"
     # print(formatted_datetime+str,end=end,flush=flush)
     pass
 
-def show_progress_bar(job_title, progress, length):
-    if progress == 0:
-        info(job_title)
-    if progress == length - 1:
-        print("") 
-    if length != 0:        
-        progress = int((progress * 100) / length)
-    else:
-        progress = 100
-    print("%d%%" % progress,end=" ",flush=True)
+class ProgressBar():
+
+    progress = 0
+    length = 0
+    job_title = ""
+
+    def __init__(self, job_title, length):  
+        self.length = length  
+        self.job_title = job_title  
+
+    def show_progress_bar(self):
+        percent = 0
+        self.progress += 1
+        if self.length != 0:        
+            percent = int((self.progress * 100) / self.length)
+        else:
+            percent = 100
+        if self.progress == 1:
+            info(f"{self.job_title}, progress = 0%, all steps = {self.length}")
+        else:
+            info(f"\r{self.job_title}, progress = {percent}%, step = {self.progress}",end="")
+        if self.progress == self.length:
+            print("") 
 
 
 def concatenate_elements(arr):  

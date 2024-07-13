@@ -127,27 +127,23 @@ class MMD_OT_fix_arm_rotation(CustormOperator):
     
 class MMD_OT_fix_interpolation_exceed(CustormOperator):
     
-    bl_label = "修复选中骨骼超出范围的插值"
-    bl_description = "修复选中骨骼超出范围的插值"
+    bl_label = "修复手骨骼旋转超出范围的插值"
+    bl_description = "修复手骨骼旋转超出范围的插值"
     bl_options = {"REGISTER","UNDO"}
-    only_now:bpy.props.BoolProperty(default=False)
 
     @classmethod
     def poll(cls, context):
         if not context.active_object or context.active_object.type!="ARMATURE" :
             return False
-        if not context.selected_pose_bones:
-            return False
         return True
     
     def execute(self, context):   
-        completely_fix_interpolation_exceed_rotation_difference(context,context.active_object,context.selected_pose_bones,self.only_now)
+        armature = context.active_object
+        fix_all_bone_rotation_difference(context,armature)
         bpy.ops.play.working_end()
         return {"FINISHED"}    
     
     def invoke(self, context, event):
-        if self.only_now:
-            return self.execute(context)
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
     
@@ -162,14 +158,14 @@ class MMD_OT_fix_arm_quaternion(CustormOperator):
 
     @classmethod
     def poll(cls, context):
-        if context.active_object is None:
+        if not context.active_object or context.active_object.type != 'ARMATURE':
             return False
         if context.mode!='POSE':
             return False
         return True
     
     def execute(self, context):  
-        fix_quaternion(context)
+        fix_all_rotation_path(context.active_object)
         bpy.ops.play.working_end()
 
         return {"FINISHED"}    
