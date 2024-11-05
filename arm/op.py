@@ -26,11 +26,13 @@ class MMD_OT_fix_arm_rotation(CustormOperator):
     def execute(self, context):    
         convert_arm_rotation(context, "leftside")
         convert_arm_rotation(context, "rightside")
-        bpy.ops.play.working_end()
+        try:
+            bpy.ops.play.working_end()
+        except:
+            pass
         return {"FINISHED"}    
 
     def invoke(self, context, event):
-        bpy.ops.play.working_end()
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 
@@ -54,7 +56,10 @@ class MMD_OT_fix_interpolation_exceed(CustormOperator):
     def execute(self, context):   
         armature = context.active_object
         fix_all_rotation_diff(context,armature)
-        bpy.ops.play.working_end()
+        try:
+            bpy.ops.play.working_end()
+        except:
+            pass
         return {"FINISHED"}    
 
     def invoke(self, context, event):
@@ -80,7 +85,10 @@ class MMD_OT_fix_arm_quaternion(CustormOperator):
     
     def execute(self, context):  
         fix_all_rotation_path(context.active_object)
-        bpy.ops.play.working_end()
+        try:
+            bpy.ops.play.working_end()
+        except:
+            pass
 
         return {"FINISHED"}    
 

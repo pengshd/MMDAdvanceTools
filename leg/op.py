@@ -18,11 +18,13 @@ class MMD_OT_fix_leg_rotation(CustormOperator):
     def execute(self, context):    
         convert_leg_rotation(context, "leftside")
         convert_leg_rotation(context, "rightside")
-        bpy.ops.play.working_end()
+        try:
+            bpy.ops.play.working_end()
+        except:
+            pass
         return {"FINISHED"}    
     
     def invoke(self, context, event):
-        bpy.ops.play.working_end()
         wm = context.window_manager
         return wm.invoke_props_dialog(self)
 

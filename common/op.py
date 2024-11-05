@@ -114,13 +114,13 @@ class MMD_OT_set_frame_now(bpy.types.Operator):
         armature = context.active_object
         settings = armature.mmd_advance_data
         if armature.mmd_advance_data.reference:
-            settings2 = armature.mmd_advance_data.reference.mmd_advance_data
+            settings = armature.mmd_advance_data.reference.mmd_advance_data
         if self.flag == "begin" :
             settings.covert_frame_start = context.scene.frame_current
-            settings2.covert_frame_start = context.scene.frame_current
+            settings.covert_frame_start = context.scene.frame_current
         if self.flag == "end" :
             settings.covert_frame_end = context.scene.frame_current   
-            settings2.covert_frame_end = context.scene.frame_current   
+            settings.covert_frame_end = context.scene.frame_current   
         return {'FINISHED'}    
 
 classes = [

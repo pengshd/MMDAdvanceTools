@@ -2,11 +2,10 @@
 bl_info = {
     "name": "MMDToolKit",
     "description": "MMD工具",
-    "author": "psd",
+    "author": "好想破坏",
     "version": (1,0),
     "blender": (4, 1, 0),
     "location": "VIEW3D > Sidebar",
-    "warning": "This addon is still in development.",
     "wiki_url": "",
     "category": "User" }
     
@@ -20,5 +19,3 @@ def unregister():
 
 if __name__ == "__main__":
     register()
-
-
