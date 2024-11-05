@@ -1,9 +1,13 @@
 from math import pi
-import sys
-from .commonFunction import *
-from .. import logger
-from .changeRotationFunction import convert_rotation_mode_and_align
 
+from mathutils import Vector
+
+from ...common import logger,boneAdvanceData
+from .convert_rotation import convert_rotation_mode_and_align
+from .utils import *
+
+
+switch = False
 # 对于和参考动作差异超过阈值的帧写入关键帧，为重新计算做准备
 # chain_pbones 整条链上的骨骼都要在同一帧写入关键帧
 def supply_frame_for_exceed_diff(armature,chain_pbones,pbone,frames):
@@ -19,8 +23,9 @@ def supply_frame_for_exceed_diff(armature,chain_pbones,pbone,frames):
         adjacent_pairs = [(frames[i], frames[i + 1]) for i in range(len(frames) - 1)]
         return adjacent_pairs
         
-    fix_angle_limit = armature.mmd_advance_data.fix_angle_limit
+    arm_fix_angle_limit = armature.mmd_advance_data.arm_fix_angle_limit
     armature_ref = armature.mmd_advance_data.reference
+    pbone_ref = armature_ref.pose.bones[pbone.name]
     frame_pairs = generate_adjacent_pairs(frames)
     exceed_frames = []
     for frame_pair in frame_pairs:
@@ -28,18 +33,27 @@ def supply_frame_for_exceed_diff(armature,chain_pbones,pbone,frames):
         frame_end = frame_pair[1]
         exceed_data = []
         for frame in range(frame_start+1, frame_end):
-            matrix = calc_final_matrix(pbone,frame)
-            ref_matrix = calc_final_matrix(armature_ref.pose.bones[pbone.name],frame)
-            ignore_y = ("hand" not in pbone.name)
+            boneAdvanceData.clear_link()
+            boneAdvanceData.initialize_link(pbone,armature.animation_data.action,frame)
+            boneAdvanceData.initialize_link(pbone_ref,armature_ref.animation_data.action,frame)
+            ignore_y = ("手首" not in pbone.mmd_bone.name_j)
+            matrix = boneAdvanceData.get_bone_data(pbone).matrix
+            ref_matrix = boneAdvanceData.get_bone_data(pbone_ref).matrix
             diff = calc_rotation_diff(matrix,ref_matrix,ignore_y)
-            logger.debug(f"diff={diff}")
-            if diff > fix_angle_limit:
-                exceed_data.append((frame,diff))
+            # logger.debug(f"diff1={diff}")
+            if switch:
+                matrix = calc_final_matrix(pbone,frame)
+                ref_matrix = calc_final_matrix(pbone_ref,frame)
+                ignore_y = ("手首" not in pbone.mmd_bone.name_j)
+                diff = calc_rotation_diff(matrix,ref_matrix,ignore_y)
+                # logger.debug(f"diff2={diff}")
+            if diff > arm_fix_angle_limit:
+                exceed_data.append((frame, diff))
         if exceed_data:
             max_diff_tuple = max(exceed_data, key=lambda x: x[1]) 
             logger.debug(f"frame = {max_diff_tuple[0]}, diff = {max_diff_tuple[1]}")
             supply_keyframe(armature,chain_pbones,max_diff_tuple[0])
-            clear_twist_align(armature,chain_pbones,max_diff_tuple[0])
+            align_after_clear_twist(armature,chain_pbones,max_diff_tuple[0])
             exceed_frames.append(max_diff_tuple[0])
     return exceed_frames
 
@@ -56,7 +70,6 @@ def calc_final_matrix(pbone,frame):
         return pbone.parent
     #绕骨骼rotate_parent_pbone旋转
     def rotate_bone(matrix,rotate_pivot_pbone,frame):
-
         homogeneous_point = matrix
         # 将点的坐标从世界空间转换到骨骼空间
         # 如果不归一化结果会不一样, 查了一整天
@@ -79,14 +92,13 @@ def calc_final_matrix(pbone,frame):
     for rotate_pivot_pbone in rotation_bone_order:
         pbone_matrix_local = rotate_bone(pbone_matrix_local,rotate_pivot_pbone,frame) 
     final_matrix = pbone_matrix_local.normalized()
-    logger.debug(f"direction={final_matrix.to_3x3().col[1].normalized()}")
     final_head_pos = final_matrix.to_translation()  
     # logger.debug(f"final_matrix={final_matrix}")    
     return final_matrix
 
-def fix_bone_rotation_difference(context,armature,pbone_for_check):
+def fix_rotation_diff(context,armature,pbone_for_check):
     current_frame = context.scene.frame_current
-    pbone_chains, pbone_chains_ref = get_pbone_chains(armature)
+    pbone_chains, pbone_chains_ref = get_arm_chains(armature)
     close_limit_rotation(armature)
     pending_frames = []
     for i in range(len(pbone_chains)):
@@ -101,8 +113,8 @@ def fix_bone_rotation_difference(context,armature,pbone_for_check):
             pending_frames = supply_frame_for_exceed_diff(armature,chain_pbones,pbone_for_check,frames)
         progress = 0
         for frame in pending_frames:   
-            context.scene.frame_set(frame)
-            convert_rotation_mode_and_align(context, armature, chain_pbones, chain_pbones_ref)
+            # context.scene.frame_set(frame)
+            convert_rotation_mode_and_align(context, chain_pbones, chain_pbones_ref, frame)
             progress+=1
         fixed_frames_str = logger.concatenate_elements(pending_frames)
         logger.info(f"{pbone_for_check.name} fix exceed {len(pending_frames)} frames: {fixed_frames_str} ")

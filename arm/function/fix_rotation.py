@@ -1,5 +1,5 @@
-from .. import logger
-from .commonFunction import *
+from ...common import logger
+from .utils import *
 from math import pi
 
 # 修复旋转方向错误的情况
@@ -18,20 +18,20 @@ def fix_bone_rotation_path(armature,posebones,frames):
             values = []
             if pbone.rotation_mode == 'QUATERNION':
                 quat = get_rotation(pbone,frame,False)
-                fcurves = get_fcurves(action,pbone,"rotation_quaternion")
+                fcurves = get_fcurves(action,pbone,TransformChannel.QUATERNION.value)
                 if frame_prev:
                     quat_prev = get_rotation(pbone,frame_prev,False)
                     #rot_dir为负证明旋转角度超过180，也就是所谓的“反转” 如果参考骨骼rot_dir_ref和rot_dir符号不一致，证明旋转方向不一致，那么就让当前骨骼换一个旋转方向
                     rot_dir = quat.dot(quat_prev)
                     posebone_ref = armature_ref.pose.bones[pbone.name]
                     rot_dir_ref = get_rotation(posebone_ref,frame,False).dot(get_rotation(posebone_ref,frame_prev,False)) + \
-                        get_rotation(get_twist_bone(posebone_ref),frame,False).dot(get_rotation(get_twist_bone(posebone_ref),frame_prev,False)) if get_twist_bone(posebone_ref) else 0
+                        get_rotation(get_arm_twist_bone(posebone_ref),frame,False).dot(get_rotation(get_arm_twist_bone(posebone_ref),frame_prev,False)) if get_arm_twist_bone(posebone_ref) else 0
                     factor = 1 if rot_dir * rot_dir_ref >= 0 else -1
                     quat = Quaternion((factor*quat.w, factor*quat.x, factor*quat.y, factor*quat.z)).normalized()
                     values = [quat.w, quat.x, quat.y, quat.z,]
             else:
                 euler = get_rotation(pbone,frame,False)
-                fcurves = get_fcurves(action,pbone,"rotation_euler")
+                fcurves = get_fcurves(action,pbone,TransformChannel.EULER.value)
                 euler_rotation = euler.to_quaternion().to_euler("YXZ")
                 if frame_prev:
                     euler_rotation_prev = get_rotation(pbone,frame_prev,False)

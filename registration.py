@@ -1,23 +1,28 @@
 import bpy
-from . import op,panel
-from . import properties
-from .properties import MMDAdvanceData
-from bpy.utils import register_classes_factory
 
-classes = []
-modules= (
-    properties, op, panel,
-)
-for module in modules:
-    if hasattr(module,"classes"):
-        classes = classes + module.classes
+from bpy.utils import register_classes_factory
+from .common import op as common_op, panel as common_panel, properties
+from .arm import op as arm_op, panel as arm_panel
+from .leg import op as leg_op, panel as leg_panel
+
+classes = [
+    *common_op.classes,
+    *common_panel.classes,
+    *arm_op.classes,
+    *arm_panel.classes,
+    *leg_op.classes,
+    *leg_panel.classes,
+    *properties.classes
+
+]
 
 _register, _unregister = register_classes_factory(classes)
+
 
 def register():
     initID(classes)
     _register()
-    bpy.types.Object.mmd_advance_data = bpy.props.PointerProperty(type=MMDAdvanceData)
+    bpy.types.Object.mmd_advance_data = bpy.props.PointerProperty(type=properties.MMDAdvanceData)
     bpy.types.Scene.redraw_count = bpy.props.IntProperty()
 
 def unregister():
@@ -33,3 +38,5 @@ def initID(classes):
                  cls.bl_idname = cls.__name__
                 
             
+if __name__ == "__main__":
+    register()
