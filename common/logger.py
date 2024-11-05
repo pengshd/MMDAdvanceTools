@@ -41,10 +41,10 @@ class ProgressBar:
         else:
             percent = 100
         if self.progress == 1:
-            info(f"{self.job_title}, progress = 0%, all steps = {self.length}")
+            info(f"",end="")
         else:
             info(
-                f"\r{self.job_title}, progress = {percent}%, step = {self.progress}",
+                f"\r{self.job_title}, progress = {percent}%, step = {self.progress}/{self.length}",
                 end="",
             )
         if self.progress == self.length:

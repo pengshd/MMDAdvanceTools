@@ -18,7 +18,7 @@ def convert_leg_rotation(context,side):
         side_name = "leftside" if ".L" in thigh.name.upper() or "_L" in thigh.name.upper() else "rightside"
         if side != side_name:
             continue
-        logger.info(f"fix {side_name} all 3 steps 。")
+        logger.info(f"fix {side_name} all 3 steps.")
         frames = get_key_frames(armature,pbones,armature.mmd_advance_data.covert_frame_start,armature.mmd_advance_data.covert_frame_end)
         if armature.mmd_advance_data.leg_ik_convert_interval > 0:
             more_frames = create_more_keyframes(armature.mmd_advance_data.covert_frame_start,armature.mmd_advance_data.covert_frame_end,armature.mmd_advance_data.leg_ik_convert_interval)

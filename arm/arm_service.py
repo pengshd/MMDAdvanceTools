@@ -19,7 +19,7 @@ def convert_arm_rotation(context : bpy.types.Context,side):
         arm_name = "leftside" if ".L" in arm.name.upper() or "_L" in arm.name.upper() else "rightside"
         if side != arm_name:
             continue
-        logger.info(f"fix {arm_name} all 3 steps 。")
+        logger.info(f"fix {arm_name} all 3 steps.")
         ##关掉前臂的限制旋转
         close_limit_rotation(armature)
         frames = get_key_frames(armature,posebones,armature.mmd_advance_data.covert_frame_start,armature.mmd_advance_data.covert_frame_end)
